@@ -4,6 +4,7 @@ const utils = require('./lib/hashUtils');
 const partials = require('express-partials');
 const bodyParser = require('body-parser');
 const Auth = require('./middleware/auth');
+const CookieParser = require('./middleware/cookieParser');
 const models = require('./models');
 
 const app = express();
@@ -17,10 +18,10 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 
 
-// app.get('/',
-// (req, res) => {
-//   res.render('index');
-// });
+app.get('/index',
+(req, res) => {
+  res.render('index');
+});
 
 app.get('/create',
 (req, res) => {
@@ -78,36 +79,58 @@ app.post('/links',
 // Write your authentication routes here
 /************************************************************/
 
-app.get('/',
-(req, res) => {
-  res.render('login');
-});
+app.get('/', (req, res, next) => {
+  CookieParser(req, res, next);
+  // check if user has valid session cookie
+    // if they do, take them to index page
 
-app.get('/signup',
-(req, res) => {
-  res.render('signup');
-});
+  next();
+}, (req, res) => {
+    res.render('login');
+  });
+
+app.get('/signup', (req, res) => {
+    res.render('signup');
+  });
 
 app.post('/signup',
-// callback function (middleware)
+// callback function (Sessions.create)
+  (req, res, next) => {
+
+    return models.Users.create({username: req.body.username,
+      password: req.body.password})
+      .catch((error) => {
+        res.redirect('/signup');
+      })
+      .then(() => {
+        res.redirect('/');
+      });
+    // next();
+  });
+
+app.post('/login',
 (req, res, next) => {
+  var username = req.body.username;
+  var passwordAttempt = req.body.password;
 
-  models.Users.create({username: req.body.username, password: req.body.password})
-  .catch((error) => {
-     res.redirect('/signup');
-    })
-  .then(() => {
-    res.redirect('/');
-   });
-})
-
-app.post('/login', (req, res, next) => {
-  // use userName to look up salt, and password from the users database.
-  // compare(userInputPassword, hashedPasswordFromDB, saltFromDB)
-  // models.users.compare.
-    // if true;
-      // .auth
-      // otherwise send to 401? page
+  return models.Users.get({username: req.body.username})
+    // .tap(user => {
+    //   if (user.username !== username) {
+    //     res.redirect('/login');
+    //   }
+    // })
+    .then((user) => {
+      if (!user) {
+        res.redirect('/login');
+      } else {
+        if (models.Users.compare(passwordAttempt, user.password, user.salt)) {
+          res.redirect('/index');
+        } else {
+          res.redirect('/login');
+          // done();
+        }
+      }
+    });
 });
 
 /************************************************************/
