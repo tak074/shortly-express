@@ -15,7 +15,7 @@ app.use(partials());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
-
+// app.use(Auth.createSession);
 
 
 app.get('/index',
@@ -83,7 +83,6 @@ app.get('/', (req, res, next) => {
   CookieParser(req, res, next);
   // check if user has valid session cookie
     // if they do, take them to index page
-
   next();
 }, (req, res) => {
     res.render('login');
@@ -105,7 +104,9 @@ app.post('/signup',
       .then(() => {
         res.redirect('/');
       });
-    // next();
+    next();
+  }, (req, res, next) => {
+    Auth.createSession(req, res, next);
   });
 
 app.post('/login',
@@ -114,11 +115,6 @@ app.post('/login',
   var passwordAttempt = req.body.password;
 
   return models.Users.get({username: req.body.username})
-    // .tap(user => {
-    //   if (user.username !== username) {
-    //     res.redirect('/login');
-    //   }
-    // })
     .then((user) => {
       if (!user) {
         res.redirect('/login');

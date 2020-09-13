@@ -482,7 +482,7 @@ describe('', function() {
     });
   });
 
-  xdescribe('Sessions and cookies', function() {
+  describe('Sessions and cookies', function() {
     var requestWithSession;
     var cookieJar;
 
@@ -512,6 +512,7 @@ describe('', function() {
         var queryString = 'SELECT * FROM sessions';
         db.query(queryString, function(error, sessions) {
           if (error) { return done(error); }
+          console.log('STOP: sessions are:', sessions);
           expect(sessions.length).to.equal(1);
           expect(sessions[0].userId).to.be.null;
           done();
