@@ -202,7 +202,7 @@ describe('', function() {
 
       request(options, function(error, res, body) {
         if (error) { return done(error); }
-        expect(res.headers.location).to.equal('/');
+        expect(res.headers.location).to.equal('/login');
         done();
       });
     });
@@ -237,7 +237,7 @@ describe('', function() {
 
       request(options, function(error, res, body) {
         if (error) { return done(error); }
-        expect(res.headers.location).to.equal('/index');
+        expect(res.headers.location).to.equal('/');
         done();
       });
     });
@@ -348,14 +348,12 @@ describe('', function() {
 
         cookieParser(requestWithoutCookies, response, function() {
           var cookies = requestWithoutCookies.cookies;
-          // console.log('first cookie', cookies);
           expect(cookies).to.be.an('object');
           expect(cookies).to.eql({});
         });
 
         cookieParser(requestWithCookies, response, function() {
           var cookies = requestWithCookies.cookies;
-          // console.log('second cookie', cookies);
           expect(cookies).to.be.an('object');
           expect(cookies).to.eql({ shortlyid: '8a864482005bcc8b968f2b18f8f7ea490e577b20' });
         });
@@ -512,7 +510,6 @@ describe('', function() {
         var queryString = 'SELECT * FROM sessions';
         db.query(queryString, function(error, sessions) {
           if (error) { return done(error); }
-          console.log('STOP: sessions are:', sessions);
           expect(sessions.length).to.equal(1);
           expect(sessions[0].userId).to.be.null;
           done();
@@ -573,7 +570,7 @@ describe('', function() {
     });
   });
 
-  xdescribe('Privileged Access:', function() {
+  describe('Privileged Access:', function() {
 
     it('Redirects to login page if a user tries to access the main page and is not signed in', function(done) {
       request('http://127.0.0.1:4568/', function(error, res, body) {

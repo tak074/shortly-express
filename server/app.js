@@ -15,20 +15,23 @@ app.use(partials());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
-// app.use(Auth.createSession);
 
 
-app.get('/index',
+app.use(require('./middleware/cookieParser'));
+app.use(Auth.createSession);
+
+
+app.get('/', Auth.verifySession,
 (req, res) => {
   res.render('index');
 });
 
-app.get('/create',
+app.get('/create', Auth.verifySession,
 (req, res) => {
   res.render('index');
 });
 
-app.get('/links',
+app.get('/links', Auth.verifySession,
 (req, res, next) => {
   models.Links.getAll()
     .then(links => {
@@ -39,7 +42,7 @@ app.get('/links',
     });
 });
 
-app.post('/links',
+app.post('/links', Auth.verifySession,
 (req, res, next) => {
   var url = req.body.url;
   if (!models.Links.isValidUrl(url)) {
@@ -79,61 +82,78 @@ app.post('/links',
 // Write your authentication routes here
 /************************************************************/
 
-app.get('/', (req, res, next) => {
-  CookieParser(req, res, next);
-  // check if user has valid session cookie
-    // if they do, take them to index page
-  next();
-}, (req, res) => {
-    res.render('login');
-  });
+app.get('/login', (req, res) => {
+  res.render('login');
+});
 
 app.get('/signup', (req, res) => {
-    res.render('signup');
-  });
+  res.render('signup');
+});
 
 app.post('/signup',
 // callback function (Sessions.create)
   (req, res, next) => {
-
-    return models.Users.create({username: req.body.username,
-      password: req.body.password})
+    return models.Users.get({username: req.body.username})
+      .then(user => {
+        if (user) {
+          throw 'username already exists';
+        }
+        return models.Users.create({username: req.body.username,
+          password: req.body.password});
+      })
+      .then((results) => {
+        return models.Sessions.update({hash: req.session.hash}, {userId: results.insertId});
+      })
+      .then(() => {
+        res.redirect('/login');
+      })
       .catch((error) => {
         res.redirect('/signup');
+      });
+    // next();
+  });
+  // (req, res, next) => {
+  //   Auth.createSession(req, res, next);
+
+  // });
+
+app.post('/login',
+  (req, res, next) => {
+    var username = req.body.username;
+    var passwordAttempt = req.body.password;
+
+    return models.Users.get({username})
+      .then((user) => {
+        if (!user || !models.Users.compare(passwordAttempt, user.password, user.salt)) {
+          throw 'password and username do no match';
+        }
+        return models.Sessions.update({hash: req.session.hash}, {userId: user.id});
       })
       .then(() => {
         res.redirect('/');
-      });
-    next();
-  }, (req, res, next) => {
-    Auth.createSession(req, res, next);
-  });
-
-app.post('/login',
-(req, res, next) => {
-  var username = req.body.username;
-  var passwordAttempt = req.body.password;
-
-  return models.Users.get({username: req.body.username})
-    .then((user) => {
-      if (!user) {
+      })
+      .catch(() => {
         res.redirect('/login');
-      } else {
-        if (models.Users.compare(passwordAttempt, user.password, user.salt)) {
-          res.redirect('/index');
-        } else {
-          res.redirect('/login');
-          // done();
-        }
-      }
-    });
-});
+      });
+  });
 
 /************************************************************/
 // Handle the code parameter route last - if all other routes fail
 // assume the route is a short code and try and handle it here.
 // If the short-code doesn't exist, send the user to '/'
 /************************************************************/
+app.get('/logout', (req, res, next) => {
+  //remove cookie
+  models.Sessions.delete({hash: req.cookies.shortlyid})
+    .then(() => {
+      res.clearCookie('shortlyid');
+      res.redirect('/login');
+    })
+    .error(error => {
+      res.status(500).send(error);
+    });
+});
+
 
 app.get('/:code', (req, res, next) => {
 
